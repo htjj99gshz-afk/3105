@@ -23,6 +23,12 @@ enum CleanerSortOrder: String, CaseIterable, Identifiable {
 }
 
 enum CleanerCatalog {
+    // Resolve names from the installed app bundle once per app launch. Cleaner can
+    // discover containers through MCM before LaunchServices gives us a friendly
+    // name, so this catalog provides the CFBundleDisplayName/CFBundleName fallback.
+    private static let bundleMetadataCatalog: [String: ApplicationBundleMetadata] =
+        ContainerStore.applicationBundleMetadataCatalog()
+
     static func sorted<Record>(
         _ records: [Record],
         order: CleanerSortOrder,
@@ -76,9 +82,28 @@ enum CleanerCatalog {
                   usage.totalBytes > 0 else {
                 continue
             }
+
+            let containerMetadata = ContainerStore.readContainerMetadata(containerPath: containerPath)
+            let launchServicesInfo = appInfoForBundleID(bundleID) as? [String: Any] ?? [:]
+            let resolvedName = AppDisplayNamePolicy.resolve(
+                bundleID: bundleID,
+                candidates: [
+                    application.name,
+                    bundleMetadataCatalog[bundleID]?.displayName,
+                    containerMetadata?.displayName,
+                    launchServicesInfo["name"] as? String
+                ]
+            )
+            let resolvedApplication = CleanerResolvedApplication(
+                bundleID: application.bundleID,
+                name: resolvedName,
+                containerPath: application.containerPath,
+                version: application.version
+            )
+
             records.append(
                 CleanerCatalogRecord(
-                    application: application,
+                    application: resolvedApplication,
                     containerPath: containerPath,
                     usage: usage
                 )
