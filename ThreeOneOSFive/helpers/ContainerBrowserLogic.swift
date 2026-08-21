@@ -239,6 +239,47 @@ enum ContainerPresentationPolicy {
 }
 
 enum AppDisplayNamePolicy {
+    private static let knownNames: [String: String] = [
+        "com.toyopagroup.picaboo": "Snapchat",
+        "com.google.ios.youtube": "YouTube",
+        "com.google.ios.youtubemusic": "YouTube Music",
+        "com.amazon.amazon": "Amazon",
+        "com.amazon.amazonforiphone": "Amazon",
+        "com.burbn.instagram": "Instagram",
+        "net.whatsapp.whatsapp": "WhatsApp",
+        "ph.telegra.telegraph": "Telegram",
+        "com.zhiliaoapp.musically": "TikTok",
+        "com.atebits.tweetie2": "X",
+        "com.google.chrome.ios": "Chrome",
+        "com.google.gmail": "Gmail",
+        "com.google.maps": "Google Maps",
+        "com.facebook.facebook": "Facebook",
+        "com.facebook.messenger": "Messenger",
+        "com.spotify.client": "Spotify",
+        "com.netflix.netflix": "Netflix",
+        "com.hammerandchisel.discord": "Discord",
+        "com.reddit.reddit": "Reddit",
+        "com.lemon.lvoverseas": "CapCut",
+        "com.apple.mobilesafari": "Safari",
+        "com.apple.mobilemail": "Mail",
+        "com.apple.mobilephone": "Phone",
+        "com.apple.mobilesms": "Messages",
+        "com.apple.mobilecal": "Calendar",
+        "com.apple.mobilenotes": "Notes",
+        "com.apple.mobiletimer": "Clock",
+        "com.apple.weather": "Weather",
+        "com.apple.maps": "Maps",
+        "com.apple.camera": "Camera",
+        "com.apple.photos": "Photos",
+        "com.apple.appstore": "App Store",
+        "com.apple.music": "Music"
+    ]
+
+    private static let ignoredComponents: Set<String> = [
+        "com", "net", "org", "io", "app", "apps", "ios", "iphone", "ipad",
+        "mobile", "client", "application", "prod", "production"
+    ]
+
     static func resolve(bundleID: String, candidates: [String?]) -> String {
         let fallback = bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
         for rawCandidate in candidates {
@@ -253,7 +294,54 @@ enum AppDisplayNamePolicy {
             }
             return candidate
         }
+
+        if let known = knownDisplayName(for: fallback) {
+            return known
+        }
+        if let inferred = inferredDisplayName(from: fallback) {
+            return inferred
+        }
         return fallback
+    }
+
+    private static func knownDisplayName(for bundleID: String) -> String? {
+        let lowercased = bundleID.lowercased()
+        if let exact = knownNames[lowercased] {
+            return exact
+        }
+        if lowercased.contains("toyopagroup.picaboo") { return "Snapchat" }
+        if lowercased.contains("google.ios.youtube") { return "YouTube" }
+        if lowercased.contains("amazon") && lowercased.hasSuffix(".amazon") { return "Amazon" }
+        if lowercased.contains("zzkko") { return "SHEIN" }
+        return nil
+    }
+
+    private static func inferredDisplayName(from bundleID: String) -> String? {
+        let components = bundleID
+            .split(separator: ".")
+            .map(String.init)
+            .reversed()
+
+        for rawComponent in components {
+            let lowercased = rawComponent.lowercased()
+            guard rawComponent.count >= 2,
+                  !ignoredComponents.contains(lowercased),
+                  rawComponent.rangeOfCharacter(from: .letters) != nil else {
+                continue
+            }
+
+            let readable = rawComponent
+                .replacingOccurrences(of: "_", with: " ")
+                .replacingOccurrences(of: "-", with: " ")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !readable.isEmpty else { continue }
+
+            if readable == readable.lowercased() || readable == readable.uppercased() {
+                return readable.capitalized
+            }
+            return readable
+        }
+        return nil
     }
 }
 
