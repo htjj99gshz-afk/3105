@@ -40,6 +40,10 @@ jobs:
           import zlib
 
           localization = Path("ThreeOneOSFive/helpers/Localization.swift")
+          overrides = Path("ThreeOneOSFive/helpers/ArabicOverrides.swift")
+          if not overrides.is_file():
+              raise SystemExit("ArabicOverrides.swift is missing")
+
           source = localization.read_text()
 
           before = """        var output = [UInt8](repeating: 0, count: arabicPayloadSize)\n        let decodedCount = compressed.withUnsafeBytes { sourceBuffer -> Int in\n"""
@@ -60,6 +64,14 @@ jobs:
               source,
               count=1,
           )
+
+          if "ArabicOverrides.value(for: key)" not in source:
+              old_text = """    func text(_ key: String) -> String {\n        if self == .arabic, let value = Self.arabicStrings[key] {\n            return value\n        }\n        return localizedBundle.localizedString(forKey: key, value: key, table: nil)\n    }\n"""
+              new_text = """    func text(_ key: String) -> String {\n        if self == .arabic {\n            if let value = ArabicOverrides.value(for: key) {\n                return value\n            }\n            if let value = Self.arabicStrings[key] {\n                return value\n            }\n        }\n        return localizedBundle.localizedString(forKey: key, value: key, table: nil)\n    }\n"""
+              if old_text not in source:
+                  raise SystemExit("AppLanguage.text localization block was not found")
+              source = source.replace(old_text, new_text, 1)
+
           localization.write_text(source)
 
           payload_section = source.split("private static let arabicPayloadBase64 =", 1)[1]
@@ -96,6 +108,7 @@ jobs:
 
           project = Path("ThreeOneOSFive.xcodeproj/project.pbxproj")
           pbx = project.read_text()
+
           ar_ref = '\t\t3105B124 /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/Localizable.strings; sourceTree = "<group>"; };\n'
           if "3105B124 /* ar */" not in pbx:
               anchor = '\t\t3105B123 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };\n'
@@ -115,8 +128,39 @@ jobs:
                   raise SystemExit("Xcode Localizable.strings variant-group anchor not found")
               pbx = pbx.replace(anchor, anchor + '\t\t\t\t3105B124 /* ar */,\n', 1)
 
+          override_build_ref = '\t\t3105M200 /* ArabicOverrides.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105M100; };\n'
+          if "3105M200 /* ArabicOverrides.swift in Sources */" not in pbx:
+              anchor = '\t\t3105A227 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A099; };\n'
+              if anchor not in pbx:
+                  raise SystemExit("Localization build-file anchor not found")
+              pbx = pbx.replace(anchor, anchor + override_build_ref, 1)
+
+          override_file_ref = '\t\t3105M100 /* ArabicOverrides.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArabicOverrides.swift; sourceTree = "<group>"; };\n'
+          if "3105M100 /* ArabicOverrides.swift */" not in pbx:
+              anchor = '\t\t3105A099 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };\n'
+              if anchor not in pbx:
+                  raise SystemExit("Localization file-reference anchor not found")
+              pbx = pbx.replace(anchor, anchor + override_file_ref, 1)
+
+          if '\t\t\t\t3105M100 /* ArabicOverrides.swift */,\n' not in pbx:
+              anchor = '\t\t\t\t3105A099 /* Localization.swift */,\n'
+              if anchor not in pbx:
+                  raise SystemExit("Helpers group Localization anchor not found")
+              pbx = pbx.replace(anchor, anchor + '\t\t\t\t3105M100 /* ArabicOverrides.swift */,\n', 1)
+
+          if '\t\t\t\t3105M200,\n' not in pbx:
+              anchor = '\t\t\t\t3105A227,\n'
+              if anchor not in pbx:
+                  raise SystemExit("Sources phase Localization anchor not found")
+              pbx = pbx.replace(anchor, anchor + '\t\t\t\t3105M200,\n', 1)
+
           project.write_text(pbx)
-          print(f"Arabic localization prepared: {len(strings)} strings, {len(raw)} decoded bytes")
+
+          if "ArabicOverrides.value(for: key)" not in source:
+              raise SystemExit("Arabic overrides were not connected to AppLanguage")
+          if pbx.count("ArabicOverrides.swift") < 3:
+              raise SystemExit("ArabicOverrides.swift was not fully registered in Xcode")
+          print(f"Arabic localization prepared: {len(strings)} base strings + wording overrides")
           PY
 
       - name: Prepare native full-screen launch configuration
@@ -189,6 +233,15 @@ jobs:
           print("Native iPhone full-screen launch configuration prepared")
           PY
 
+      - name: Verify Arabic credit source
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F '@D7OM_24' ThreeOneOSFive/views/SettingsView.swift
+          grep -F 'تم التعريب بواسطة' ThreeOneOSFive/views/SettingsView.swift
+          grep -F 'ArabicOverrides.value(for: key)' ThreeOneOSFive/helpers/Localization.swift
+          grep -F 'مشروع FilzaSlop واكتشاف التطبيقات عبر MHA-C2' ThreeOneOSFive/helpers/ArabicOverrides.swift
+
       - name: Build unsigned iPhone app
         shell: bash
         run: |
@@ -251,6 +304,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ThreeOneOSFive/helpers/Localization.swift
+          git add ThreeOneOSFive/helpers/ArabicOverrides.swift
           git add ThreeOneOSFive/ar.lproj/Localizable.strings
           git add ThreeOneOSFive/Info.plist
           git add ThreeOneOSFive/LaunchScreen.storyboard
@@ -262,7 +316,7 @@ jobs:
             exit 0
           fi
 
-          git commit -m "build: enforce full-screen launch and update IPA [skip ci]"
+          git commit -m "build: compile Arabic wording overrides and update IPA [skip ci]"
           git push origin HEAD:main
 
       - name: Publish latest unsigned IPA release
