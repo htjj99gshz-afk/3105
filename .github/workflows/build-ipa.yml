@@ -42,7 +42,6 @@ jobs:
           localization = Path("ThreeOneOSFive/helpers/Localization.swift")
           source = localization.read_text()
 
-          # Keep the existing compressed dictionary compatible with Xcode 26.
           before = """        var output = [UInt8](repeating: 0, count: arabicPayloadSize)\n        let decodedCount = compressed.withUnsafeBytes { sourceBuffer -> Int in\n"""
           after = """        var output = [UInt8](repeating: 0, count: arabicPayloadSize)\n        let outputCapacity = output.count\n        let decodedCount = compressed.withUnsafeBytes { sourceBuffer -> Int in\n"""
           if before in source:
@@ -55,7 +54,6 @@ jobs:
           elif "let outputCapacity = output.count" not in source:
               raise SystemExit("Localization decompression block was not found")
 
-          # Extra headroom makes runtime decompression tolerant across system releases.
           source = re.sub(
               r"private static let arabicPayloadSize = \d+",
               "private static let arabicPayloadSize = 262144",
@@ -86,8 +84,6 @@ jobs:
           if missing:
               raise SystemExit(f"Arabic payload missing keys: {missing}")
 
-          # Generate a normal iOS ar.lproj fallback. AppLanguage will use this even if
-          # the in-memory compressed dictionary cannot be decoded on a specific device.
           ar_dir = Path("ThreeOneOSFive/ar.lproj")
           ar_dir.mkdir(parents=True, exist_ok=True)
           strings_file = ar_dir / "Localizable.strings"
@@ -98,7 +94,6 @@ jobs:
               lines.append(f"{k} = {v};")
           strings_file.write_text("\n".join(lines) + "\n")
 
-          # Add Arabic to the Xcode localization variant group.
           project = Path("ThreeOneOSFive.xcodeproj/project.pbxproj")
           pbx = project.read_text()
           ar_ref = '\t\t3105B124 /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/Localizable.strings; sourceTree = "<group>"; };\n'
@@ -122,7 +117,76 @@ jobs:
 
           project.write_text(pbx)
           print(f"Arabic localization prepared: {len(strings)} strings, {len(raw)} decoded bytes")
-          print("Welcome:", strings["onboarding.welcome_title"])
+          PY
+
+      - name: Prepare native full-screen launch configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import plistlib
+
+          launch = Path("ThreeOneOSFive/LaunchScreen.storyboard")
+          if not launch.is_file():
+              raise SystemExit("LaunchScreen.storyboard is missing")
+
+          info_path = Path("ThreeOneOSFive/Info.plist")
+          with info_path.open("rb") as f:
+              info = plistlib.load(f)
+          info.pop("UILaunchScreen", None)
+          info["UILaunchStoryboardName"] = "LaunchScreen"
+          info["UIRequiresFullScreen"] = True
+          with info_path.open("wb") as f:
+              plistlib.dump(info, f, sort_keys=False)
+
+          project = Path("ThreeOneOSFive.xcodeproj/project.pbxproj")
+          pbx = project.read_text()
+
+          build_ref = '\t\t3105L200 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3105L100; };\n'
+          if "3105L200 /* LaunchScreen.storyboard in Resources */" not in pbx:
+              anchor = '\t\t3105A228 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3105A120; };\n'
+              if anchor not in pbx:
+                  raise SystemExit("Resources build-file anchor not found")
+              pbx = pbx.replace(anchor, anchor + build_ref, 1)
+
+          file_ref = '\t\t3105L100 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };\n'
+          if "3105L100 /* LaunchScreen.storyboard */" not in pbx:
+              anchor = '\t\t3105B124 /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/Localizable.strings; sourceTree = "<group>"; };\n'
+              if anchor not in pbx:
+                  raise SystemExit("Launch-screen file-reference anchor not found")
+              pbx = pbx.replace(anchor, anchor + file_ref, 1)
+
+          if '\t\t\t\t3105L100 /* LaunchScreen.storyboard */,\n' not in pbx:
+              anchor = '\t\t\t\t3105A060 /* Info.plist */,\n'
+              if anchor not in pbx:
+                  raise SystemExit("Main group Info.plist anchor not found")
+              pbx = pbx.replace(anchor, anchor + '\t\t\t\t3105L100 /* LaunchScreen.storyboard */,\n', 1)
+
+          if '\t\t\t\t3105L200,\n' not in pbx:
+              anchor = '\t\t\t\t3105A228,\n'
+              if anchor not in pbx:
+                  raise SystemExit("Resources phase anchor not found")
+              pbx = pbx.replace(anchor, anchor + '\t\t\t\t3105L200,\n', 1)
+
+          pbx = pbx.replace(
+              'INFOPLIST_KEY_UILaunchScreen_Generation = YES;',
+              'INFOPLIST_KEY_UILaunchScreen_Generation = NO;'
+          )
+          if 'INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;' not in pbx:
+              pbx = pbx.replace(
+                  'INFOPLIST_KEY_UILaunchScreen_Generation = NO;',
+                  'INFOPLIST_KEY_UILaunchScreen_Generation = NO;\n\t\t\t\tINFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;\n\t\t\t\tINFOPLIST_KEY_UIRequiresFullScreen = YES;'
+              )
+          pbx = pbx.replace('TARGETED_DEVICE_FAMILY = "1,2";', 'TARGETED_DEVICE_FAMILY = 1;')
+
+          project.write_text(pbx)
+
+          if pbx.count("3105L100 /* LaunchScreen.storyboard */") < 2:
+              raise SystemExit("LaunchScreen storyboard was not fully registered in the Xcode project")
+          if "3105L200 /* LaunchScreen.storyboard in Resources */" not in pbx:
+              raise SystemExit("LaunchScreen resource build file was not registered")
+          print("Native iPhone full-screen launch configuration prepared")
           PY
 
       - name: Build unsigned iPhone app
@@ -151,6 +215,10 @@ jobs:
           test -f "$BUILD_DIR/3105.app/ar.lproj/Localizable.strings"
           /usr/bin/plutil -p "$BUILD_DIR/3105.app/ar.lproj/Localizable.strings" | grep -F "مرحبًا بك في 3105"
 
+          /usr/libexec/PlistBuddy -c "Print :UILaunchStoryboardName" "$BUILD_DIR/3105.app/Info.plist" | grep -Fx "LaunchScreen"
+          /usr/libexec/PlistBuddy -c "Print :UIRequiresFullScreen" "$BUILD_DIR/3105.app/Info.plist" | grep -Fx "true"
+          find "$BUILD_DIR/3105.app" -maxdepth 3 -name 'LaunchScreen.storyboardc' -print -quit | grep -q .
+
           cp -R "$BUILD_DIR/3105.app" "$PAYLOAD_DIR/3105.app"
 
           cd "$RUNNER_TEMP"
@@ -170,7 +238,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Commit localization and IPA into repository
+      - name: Commit localization, full-screen configuration and IPA into repository
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
         run: |
@@ -184,15 +252,17 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ThreeOneOSFive/helpers/Localization.swift
           git add ThreeOneOSFive/ar.lproj/Localizable.strings
+          git add ThreeOneOSFive/Info.plist
+          git add ThreeOneOSFive/LaunchScreen.storyboard
           git add ThreeOneOSFive.xcodeproj/project.pbxproj
           git add -f dist/3105-unsigned.ipa dist/3105-unsigned.ipa.sha256
 
           if git diff --cached --quiet; then
-            echo "Localization and IPA are already current."
+            echo "Source configuration and IPA are already current."
             exit 0
           fi
 
-          git commit -m "build: bundle Arabic localization and update IPA [skip ci]"
+          git commit -m "build: enforce full-screen launch and update IPA [skip ci]"
           git push origin HEAD:main
 
       - name: Publish latest unsigned IPA release
