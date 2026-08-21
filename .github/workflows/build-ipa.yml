@@ -1,0 +1,86 @@
+name: Build IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-ipa-main
+  cancel-in-progress: true
+
+jobs:
+  build-ipa:
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build unsigned iPhone app
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BUILD_DIR="$RUNNER_TEMP/3105-build"
+          PAYLOAD_DIR="$RUNNER_TEMP/Payload"
+
+          rm -rf "$BUILD_DIR" "$PAYLOAD_DIR"
+          mkdir -p "$BUILD_DIR" "$PAYLOAD_DIR"
+
+          xcodebuild \
+            -project ThreeOneOSFive.xcodeproj \
+            -target 3105 \
+            -configuration Release \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CONFIGURATION_BUILD_DIR="$BUILD_DIR" \
+            build
+
+          test -d "$BUILD_DIR/3105.app"
+          cp -R "$BUILD_DIR/3105.app" "$PAYLOAD_DIR/3105.app"
+
+          cd "$RUNNER_TEMP"
+          /usr/bin/zip -qry "$GITHUB_WORKSPACE/3105-unsigned.ipa" Payload
+
+          cd "$GITHUB_WORKSPACE"
+          shasum -a 256 3105-unsigned.ipa > 3105-unsigned.ipa.sha256
+          ls -lh 3105-unsigned.ipa 3105-unsigned.ipa.sha256
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3105-unsigned-ipa
+          path: |
+            3105-unsigned.ipa
+            3105-unsigned.ipa.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish latest unsigned IPA release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="latest-build"
+
+          gh release delete "$TAG" --cleanup-tag --yes || true
+
+          gh release create "$TAG" \
+            3105-unsigned.ipa \
+            3105-unsigned.ipa.sha256 \
+            --target "$GITHUB_SHA" \
+            --title "3105 Latest Unsigned IPA" \
+            --notes "Unsigned IPA built automatically from the latest main commit ($GITHUB_SHA). Re-sign the IPA before installing it on an iPhone." \
+            --prerelease
