@@ -79,9 +79,9 @@ struct SettingsView: View {
 
                 Section(language.text("settings.credits")) {
                     creditsRow(
-                        name: "@D7OM_24",
-                        role: language == .arabic ? "تم التعريب بواسطة • منصة X" : "Arabic localization • X",
-                        url: "https://x.com/D7OM_24"
+                        name: "@id7mee99",
+                        role: language == .arabic ? "تم التعريب بواسطة • تيليجرام" : "Arabic localization • Telegram",
+                        url: "https://t.me/id7mee99"
                     )
                     creditsRow(
                         name: "YangJiii",
