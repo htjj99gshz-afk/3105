@@ -5,12 +5,15 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 concurrency:
-  group: build-ipa-main
+  group: build-ipa-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -67,7 +70,30 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Commit IPA into repository
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+          cp 3105-unsigned.ipa dist/3105-unsigned.ipa
+          cp 3105-unsigned.ipa.sha256 dist/3105-unsigned.ipa.sha256
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f dist/3105-unsigned.ipa dist/3105-unsigned.ipa.sha256
+
+          if git diff --cached --quiet; then
+            echo "IPA is already current."
+            exit 0
+          fi
+
+          git commit -m "build: update unsigned IPA [skip ci]"
+          git push origin HEAD:main
+
       - name: Publish latest unsigned IPA release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
