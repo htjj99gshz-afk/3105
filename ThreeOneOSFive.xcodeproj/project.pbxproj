@@ -24,6 +24,7 @@
 		3105A225 /* sandbox_escape.m in Sources */ = {isa = PBXBuildFile; fileRef = 3105A085; };
 		3105A226 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A098; };
 		3105A227 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A099; };
+		3105M200 /* ArabicOverrides.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105M100; };
 		3105A235 /* AppIconHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = 3105A106; };
 		3105A208 /* KernelExploit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3105A202; };
 		3105J200 /* AntiDetection.m in Sources */ = {isa = PBXBuildFile; fileRef = 3105J201; };
@@ -103,6 +104,7 @@
 		3105A097 /* xpaci.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = xpaci.h; sourceTree = "<group>"; };
 		3105A098 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		3105A099 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
+		3105M100 /* ArabicOverrides.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArabicOverrides.swift; sourceTree = "<group>"; };
 		3105A104 /* ContainerStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerStore.swift; sourceTree = "<group>"; };
 		3105A105 /* AppDataBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDataBrowserView.swift; sourceTree = "<group>"; };
 		3105A106 /* AppIconHelper.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppIconHelper.m; sourceTree = "<group>"; };
@@ -237,6 +239,7 @@
 			isa = PBXGroup;
 			children = (
 				3105A099 /* Localization.swift */,
+				3105M100 /* ArabicOverrides.swift */,
 				3105A104 /* ContainerStore.swift */,
 				3105A108 /* ContainerIdentityResolver.swift */,
 				3105A109 /* ContainerBrowserLogic.swift */,
@@ -373,6 +376,7 @@
 				3105A224, 3105A225,
 				3105A226,
 				3105A227,
+				3105M200,
 				3105A233,
 				3105A234,
 				3105A235,

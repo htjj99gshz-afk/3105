@@ -23,8 +23,13 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     }
 
     func text(_ key: String) -> String {
-        if self == .arabic, let value = Self.arabicStrings[key] {
-            return value
+        if self == .arabic {
+            if let value = ArabicOverrides.value(for: key) {
+                return value
+            }
+            if let value = Self.arabicStrings[key] {
+                return value
+            }
         }
         return localizedBundle.localizedString(forKey: key, value: key, table: nil)
     }
