@@ -1,1 +1,1 @@
-Temporary build verification trigger. This file can be removed after the IPA workflow is confirmed.
+Temporary build verification trigger. Updated after the Xcode 26 Swift exclusivity workaround.
