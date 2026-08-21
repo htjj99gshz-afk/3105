@@ -44,13 +44,14 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     private static let arabicStrings: [String: String] = {
         guard let compressed = Data(base64Encoded: arabicPayloadBase64) else { return [:] }
         var output = [UInt8](repeating: 0, count: arabicPayloadSize)
+        let outputCapacity = output.count
         let decodedCount = compressed.withUnsafeBytes { sourceBuffer -> Int in
             guard let source = sourceBuffer.bindMemory(to: UInt8.self).baseAddress else { return 0 }
             return output.withUnsafeMutableBytes { destinationBuffer -> Int in
                 guard let destination = destinationBuffer.bindMemory(to: UInt8.self).baseAddress else { return 0 }
                 return compression_decode_buffer(
                     destination,
-                    output.count,
+                    outputCapacity,
                     source,
                     compressed.count,
                     nil,
