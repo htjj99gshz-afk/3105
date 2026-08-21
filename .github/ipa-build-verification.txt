@@ -1,1 +1,1 @@
-Temporary build verification trigger. Updated after the Xcode 26 Swift exclusivity workaround.
+IPA build verification completed successfully on Xcode 26.6.
