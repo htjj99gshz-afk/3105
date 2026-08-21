@@ -150,6 +150,7 @@
 		3105A121 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		3105A122 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/Localizable.strings; sourceTree = "<group>"; };
 		3105B123 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		3105B124 /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/Localizable.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -331,6 +332,7 @@
 			knownRegions = (
 				en,
 				vi,
+				ar,
 				"zh-Hans",
 				Base,
 			);
@@ -421,6 +423,7 @@
 				3105A121 /* en */,
 				3105A122 /* vi */,
 				3105B123 /* zh-Hans */,
+				3105B124 /* ar */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
