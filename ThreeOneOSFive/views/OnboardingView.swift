@@ -97,6 +97,7 @@ struct OnboardingView: View {
                     Button {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
                             languageCode = option.rawValue
+                            step = .welcome
                         }
                     } label: {
                         HStack {
@@ -104,7 +105,7 @@ struct OnboardingView: View {
                                 Text(option.displayName)
                                     .font(.body.weight(.semibold))
                                     .foregroundStyle(.primary)
-                                Text(option.rawValue == "en" ? "English" : option.rawValue == "vi" ? "Tiếng Việt" : "简体中文")
+                                Text(option.rawValue == "en" ? "English" : option.rawValue == "ar" ? "العربية" : option.rawValue == "vi" ? "Tiếng Việt" : "简体中文")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
