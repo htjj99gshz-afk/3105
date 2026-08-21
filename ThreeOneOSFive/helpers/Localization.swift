@@ -64,7 +64,7 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         return (try? JSONSerialization.jsonObject(with: data)) as? [String: String] ?? [:]
     }()
 
-    private static let arabicPayloadSize = 36742
+    private static let arabicPayloadSize = 262144
     private static let arabicPayloadBase64 =
             "eNrFPdtuJMd1v9IRIMACkrElJVagJ8kSYtmw7IXXDpDAwKA50yTbO9M96enZXToIoOVll6IVOELybki0xMuSS3O5XC7lN33F8FVfknOrqlOXHnJlBXmwV5yu" +
             "y6mqU+d+Tv37K/lk0pvOltqyHRWvvP3K1db8eH46P80+rJfKUfHjYtrmo/aVv6V2g3ySw69lu9YvhmVbN7rD/IurrauN+d7Vw/ne/DDqP6jH47rqDUb1FOeZ" +
