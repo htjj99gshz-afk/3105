@@ -233,14 +233,19 @@ jobs:
           print("Native iPhone full-screen launch configuration prepared")
           PY
 
-      - name: Verify Arabic credit source
+      - name: Verify localization credit and app-name fallback source
         shell: bash
         run: |
           set -euo pipefail
-          grep -F '@D7OM_24' ThreeOneOSFive/views/SettingsView.swift
+          grep -F '@id7mee99' ThreeOneOSFive/views/SettingsView.swift
+          grep -F 'https://t.me/id7mee99' ThreeOneOSFive/views/SettingsView.swift
           grep -F 'تم التعريب بواسطة' ThreeOneOSFive/views/SettingsView.swift
           grep -F 'ArabicOverrides.value(for: key)' ThreeOneOSFive/helpers/Localization.swift
           grep -F 'مشروع FilzaSlop واكتشاف التطبيقات عبر MHA-C2' ThreeOneOSFive/helpers/ArabicOverrides.swift
+          grep -F 'com.toyopagroup.picaboo' ThreeOneOSFive/helpers/ContainerBrowserLogic.swift
+          grep -F '"Snapchat"' ThreeOneOSFive/helpers/ContainerBrowserLogic.swift
+          grep -F '"Amazon"' ThreeOneOSFive/helpers/ContainerBrowserLogic.swift
+          grep -F '"YouTube"' ThreeOneOSFive/helpers/ContainerBrowserLogic.swift
 
       - name: Build unsigned iPhone app
         shell: bash
