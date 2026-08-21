@@ -1,2 +1,0 @@
-Verify Cleaner installed-bundle name resolution on Xcode.
-Rebuild IPA from updated main.
