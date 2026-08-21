@@ -28,16 +28,21 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: Apply source fixes
+      - name: Validate and prepare Arabic localization
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import base64
+          import json
+          import re
+          import zlib
 
-          # Persist the Swift/Xcode 26 exclusivity fix used by Arabic localization.
-          localization = Path("ThreeOneOSFive/helpers/Localization.swift")
-          source = localization.read_text()
+          path = Path("ThreeOneOSFive/helpers/Localization.swift")
+          source = path.read_text()
+
+          # Xcode 26 Swift exclusivity compatibility.
           before = """        var output = [UInt8](repeating: 0, count: arabicPayloadSize)\n        let decodedCount = compressed.withUnsafeBytes { sourceBuffer -> Int in\n"""
           after = """        var output = [UInt8](repeating: 0, count: arabicPayloadSize)\n        let outputCapacity = output.count\n        let decodedCount = compressed.withUnsafeBytes { sourceBuffer -> Int in\n"""
           if before in source:
@@ -47,32 +52,41 @@ jobs:
                   "                    outputCapacity,\n                    source,",
                   1,
               )
-              localization.write_text(source)
-              print("Updated Localization.swift for Xcode 26")
-          elif "let outputCapacity = output.count" in source:
-              print("Localization.swift already compatible")
-          else:
-              raise SystemExit("Expected Localization.swift decompression code was not found")
+          elif "let outputCapacity = output.count" not in source:
+              raise SystemExit("Localization decompression block was not found")
 
-          # Selecting a language on onboarding should immediately continue to Welcome.
-          onboarding = Path("ThreeOneOSFive/views/OnboardingView.swift")
-          source = onboarding.read_text()
-          old_action = """                    Button {\n                        withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {\n                            languageCode = option.rawValue\n                        }\n                    } label: {\n"""
-          new_action = """                    Button {\n                        withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {\n                            languageCode = option.rawValue\n                            step = .welcome\n                        }\n                    } label: {\n"""
-          if old_action in source:
-              source = source.replace(old_action, new_action, 1)
-          elif "step = .welcome" not in source:
-              raise SystemExit("Expected onboarding language button was not found")
+          # Give the embedded Arabic JSON enough decompression capacity.
+          source = re.sub(
+              r"private static let arabicPayloadSize = \d+",
+              "private static let arabicPayloadSize = 262144",
+              source,
+              count=1,
+          )
+          path.write_text(source)
 
-          old_subtitle = '                                Text(option.rawValue == "en" ? "English" : option.rawValue == "vi" ? "Tiếng Việt" : "简体中文")\n'
-          new_subtitle = '                                Text(option.rawValue == "en" ? "English" : option.rawValue == "ar" ? "العربية" : option.rawValue == "vi" ? "Tiếng Việt" : "简体中文")\n'
-          if old_subtitle in source:
-              source = source.replace(old_subtitle, new_subtitle, 1)
-          elif 'option.rawValue == "ar" ? "العربية"' not in source:
-              raise SystemExit("Expected onboarding language subtitle was not found")
+          payload = source.split("private static let arabicPayloadBase64 =", 1)[1]
+          chunks = re.findall(r'"([A-Za-z0-9+/=]+)"', payload)
+          if not chunks:
+              raise SystemExit("Arabic payload was not found")
 
-          onboarding.write_text(source)
-          print("Updated OnboardingView.swift language selection flow")
+          raw = zlib.decompress(base64.b64decode("".join(chunks)))
+          strings = json.loads(raw.decode("utf-8"))
+          required = [
+              "onboarding.step",
+              "onboarding.language_title",
+              "onboarding.welcome_title",
+              "onboarding.welcome_message",
+              "onboarding.welcome_badge",
+              "common.next",
+              "common.back",
+              "common.finish",
+          ]
+          missing = [key for key in required if not strings.get(key)]
+          if missing:
+              raise SystemExit(f"Arabic payload missing keys: {missing}")
+
+          print(f"Arabic localization OK: {len(strings)} strings, {len(raw)} decoded bytes")
+          print(strings["onboarding.welcome_title"])
           PY
 
       - name: Build unsigned iPhone app
@@ -117,7 +131,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Commit source fixes and IPA into repository
+      - name: Commit source fix and IPA into repository
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
         run: |
@@ -130,7 +144,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ThreeOneOSFive/helpers/Localization.swift
-          git add ThreeOneOSFive/views/OnboardingView.swift
           git add -f dist/3105-unsigned.ipa dist/3105-unsigned.ipa.sha256
 
           if git diff --cached --quiet; then
@@ -138,7 +151,7 @@ jobs:
             exit 0
           fi
 
-          git commit -m "fix: onboarding language selection and update IPA [skip ci]"
+          git commit -m "build: update Arabic localization and IPA [skip ci]"
           git push origin HEAD:main
 
       - name: Publish latest unsigned IPA release
