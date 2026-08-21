@@ -1,1 +1,1 @@
-IPA build verification completed successfully on Xcode 26.6. Temporary branch may be deleted.
+IPA build verification completed successfully on Xcode 26.6.
