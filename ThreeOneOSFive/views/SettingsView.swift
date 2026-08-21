@@ -77,6 +77,14 @@ struct SettingsView: View {
                     )
                 }
 
+                Section("تم التعريب بواسطة") {
+                    creditsRow(
+                        name: "@D7OM_24",
+                        role: "منصة X",
+                        url: "https://x.com/D7OM_24"
+                    )
+                }
+
                 Section(language.text("settings.credits")) {
                     creditsRow(
                         name: "YangJiii",
