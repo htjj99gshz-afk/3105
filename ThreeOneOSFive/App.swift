@@ -37,6 +37,7 @@ struct ThreeOneOSFiveApp: App {
                     .environmentObject(fileOperationCoordinator)
                     .environment(\.appLanguage, language)
                     .environment(\.locale, language.locale)
+                    .environment(\.layoutDirection, language.layoutDirection)
                     .opacity(showOnboarding ? 0 : 1)
                     .allowsHitTesting(!showOnboarding)
 
@@ -51,6 +52,7 @@ struct ThreeOneOSFiveApp: App {
                     }
                     .environment(\.appLanguage, language)
                     .environment(\.locale, language.locale)
+                    .environment(\.layoutDirection, language.layoutDirection)
                     .transition(.opacity.combined(with: .scale(scale: 0.98)))
                     .zIndex(1)
                 }
