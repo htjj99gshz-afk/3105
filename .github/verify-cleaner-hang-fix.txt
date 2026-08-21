@@ -1,0 +1,1 @@
+Verify Cleaner no longer performs a full installed-bundle tree scan before processing apps.
