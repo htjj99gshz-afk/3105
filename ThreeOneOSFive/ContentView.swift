@@ -38,6 +38,8 @@ struct ContentView: View {
                 compactLayout
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(uiColor: .systemBackground).ignoresSafeArea())
         .tint(AppTheme.accent)
         .imageScale(.small)
         .onChange(of: patchDraftCoordinator.request?.id) { requestID in
@@ -61,6 +63,7 @@ struct ContentView: View {
         TabView(selection: tabSelection) {
             ForEach(featureVisibility.visibleSections) { section in
                 sectionContent(section)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .tabItem {
                         CompactTabLabel(
                             title: language.text(section.titleKey),
@@ -70,6 +73,7 @@ struct ContentView: View {
                     .tag(section.rawValue)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var regularLayout: some View {
@@ -219,6 +223,7 @@ private struct DashboardView: View {
                 deviceSection
                 featuresSection
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationBarTitleDisplayMode(.inline)
             .tint(AppTheme.accent)
             .toolbar {
@@ -238,6 +243,7 @@ private struct DashboardView: View {
             .sheet(isPresented: $showSettings) { SettingsView() }
             .sheet(isPresented: $showLogs) { LogView() }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var featuresSection: some View {
