@@ -28,7 +28,7 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: Validate and prepare Arabic localization
+      - name: Prepare Arabic localization
         shell: bash
         run: |
           set -euo pipefail
@@ -39,10 +39,10 @@ jobs:
           import re
           import zlib
 
-          path = Path("ThreeOneOSFive/helpers/Localization.swift")
-          source = path.read_text()
+          localization = Path("ThreeOneOSFive/helpers/Localization.swift")
+          source = localization.read_text()
 
-          # Xcode 26 Swift exclusivity compatibility.
+          # Keep the existing compressed dictionary compatible with Xcode 26.
           before = """        var output = [UInt8](repeating: 0, count: arabicPayloadSize)\n        let decodedCount = compressed.withUnsafeBytes { sourceBuffer -> Int in\n"""
           after = """        var output = [UInt8](repeating: 0, count: arabicPayloadSize)\n        let outputCapacity = output.count\n        let decodedCount = compressed.withUnsafeBytes { sourceBuffer -> Int in\n"""
           if before in source:
@@ -55,17 +55,18 @@ jobs:
           elif "let outputCapacity = output.count" not in source:
               raise SystemExit("Localization decompression block was not found")
 
-          # Give the embedded Arabic JSON enough decompression capacity.
+          # Extra headroom makes runtime decompression tolerant across system releases.
           source = re.sub(
               r"private static let arabicPayloadSize = \d+",
               "private static let arabicPayloadSize = 262144",
               source,
               count=1,
           )
-          path.write_text(source)
+          localization.write_text(source)
 
-          payload = source.split("private static let arabicPayloadBase64 =", 1)[1]
-          chunks = re.findall(r'"([A-Za-z0-9+/=]+)"', payload)
+          payload_section = source.split("private static let arabicPayloadBase64 =", 1)[1]
+          payload_section = payload_section.split("\n}\n\nprivate struct AppLanguageEnvironmentKey", 1)[0]
+          chunks = re.findall(r'"([A-Za-z0-9+/=]+)"', payload_section)
           if not chunks:
               raise SystemExit("Arabic payload was not found")
 
@@ -85,8 +86,43 @@ jobs:
           if missing:
               raise SystemExit(f"Arabic payload missing keys: {missing}")
 
-          print(f"Arabic localization OK: {len(strings)} strings, {len(raw)} decoded bytes")
-          print(strings["onboarding.welcome_title"])
+          # Generate a normal iOS ar.lproj fallback. AppLanguage will use this even if
+          # the in-memory compressed dictionary cannot be decoded on a specific device.
+          ar_dir = Path("ThreeOneOSFive/ar.lproj")
+          ar_dir.mkdir(parents=True, exist_ok=True)
+          strings_file = ar_dir / "Localizable.strings"
+          lines = []
+          for key in sorted(strings):
+              k = json.dumps(key, ensure_ascii=False)
+              v = json.dumps(strings[key], ensure_ascii=False)
+              lines.append(f"{k} = {v};")
+          strings_file.write_text("\n".join(lines) + "\n")
+
+          # Add Arabic to the Xcode localization variant group.
+          project = Path("ThreeOneOSFive.xcodeproj/project.pbxproj")
+          pbx = project.read_text()
+          ar_ref = '\t\t3105B124 /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/Localizable.strings; sourceTree = "<group>"; };\n'
+          if "3105B124 /* ar */" not in pbx:
+              anchor = '\t\t3105B123 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };\n'
+              if anchor not in pbx:
+                  raise SystemExit("Xcode localization file-reference anchor not found")
+              pbx = pbx.replace(anchor, anchor + ar_ref, 1)
+
+          if '\t\t\t\tar,\n' not in pbx:
+              anchor = '\t\t\t\tvi,\n\t\t\t\t"zh-Hans",\n'
+              if anchor not in pbx:
+                  raise SystemExit("Xcode knownRegions anchor not found")
+              pbx = pbx.replace(anchor, '\t\t\t\tvi,\n\t\t\t\tar,\n\t\t\t\t"zh-Hans",\n', 1)
+
+          if '\t\t\t\t3105B124 /* ar */,\n' not in pbx:
+              anchor = '\t\t\t\t3105B123 /* zh-Hans */,\n'
+              if anchor not in pbx:
+                  raise SystemExit("Xcode Localizable.strings variant-group anchor not found")
+              pbx = pbx.replace(anchor, anchor + '\t\t\t\t3105B124 /* ar */,\n', 1)
+
+          project.write_text(pbx)
+          print(f"Arabic localization prepared: {len(strings)} strings, {len(raw)} decoded bytes")
+          print("Welcome:", strings["onboarding.welcome_title"])
           PY
 
       - name: Build unsigned iPhone app
@@ -112,6 +148,9 @@ jobs:
             build
 
           test -d "$BUILD_DIR/3105.app"
+          test -f "$BUILD_DIR/3105.app/ar.lproj/Localizable.strings"
+          /usr/bin/plutil -p "$BUILD_DIR/3105.app/ar.lproj/Localizable.strings" | grep -F "مرحبًا بك في 3105"
+
           cp -R "$BUILD_DIR/3105.app" "$PAYLOAD_DIR/3105.app"
 
           cd "$RUNNER_TEMP"
@@ -131,7 +170,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Commit source fix and IPA into repository
+      - name: Commit localization and IPA into repository
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
         run: |
@@ -144,14 +183,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ThreeOneOSFive/helpers/Localization.swift
+          git add ThreeOneOSFive/ar.lproj/Localizable.strings
+          git add ThreeOneOSFive.xcodeproj/project.pbxproj
           git add -f dist/3105-unsigned.ipa dist/3105-unsigned.ipa.sha256
 
           if git diff --cached --quiet; then
-            echo "Source and IPA are already current."
+            echo "Localization and IPA are already current."
             exit 0
           fi
 
-          git commit -m "build: update Arabic localization and IPA [skip ci]"
+          git commit -m "build: bundle Arabic localization and update IPA [skip ci]"
           git push origin HEAD:main
 
       - name: Publish latest unsigned IPA release
