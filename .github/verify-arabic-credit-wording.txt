@@ -1,0 +1,1 @@
+Verify Arabic credit visibility and wording overrides.
