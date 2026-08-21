@@ -77,15 +77,12 @@ struct SettingsView: View {
                     )
                 }
 
-                Section("تم التعريب بواسطة") {
+                Section(language.text("settings.credits")) {
                     creditsRow(
                         name: "@D7OM_24",
-                        role: "منصة X",
+                        role: language == .arabic ? "تم التعريب بواسطة • منصة X" : "Arabic localization • X",
                         url: "https://x.com/D7OM_24"
                     )
-                }
-
-                Section(language.text("settings.credits")) {
                     creditsRow(
                         name: "YangJiii",
                         role: language.text("credit.yangjiii"),
