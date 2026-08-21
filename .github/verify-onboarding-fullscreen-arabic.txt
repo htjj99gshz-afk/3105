@@ -1,0 +1,1 @@
+CI verification trigger for Arabic onboarding, full-screen layout, and navigation controls.
