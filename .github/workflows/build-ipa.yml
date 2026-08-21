@@ -28,6 +28,29 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
+      - name: Apply Xcode 26 Swift exclusivity workaround
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("ThreeOneOSFive/helpers/Localization.swift")
+          source = path.read_text()
+          before = """        var output = [UInt8](repeating: 0, count: arabicPayloadSize)\n        let decodedCount = compressed.withUnsafeBytes { sourceBuffer -> Int in\n"""
+          after = """        var output = [UInt8](repeating: 0, count: arabicPayloadSize)\n        let outputCapacity = output.count\n        let decodedCount = compressed.withUnsafeBytes { sourceBuffer -> Int in\n"""
+
+          if before in source:
+              source = source.replace(before, after, 1)
+              source = source.replace("                    output.count,\n                    source,", "                    outputCapacity,\n                    source,", 1)
+              path.write_text(source)
+              print("Applied Swift exclusivity workaround to Localization.swift")
+          elif "let outputCapacity = output.count" in source:
+              print("Localization.swift is already compatible; no workaround needed")
+          else:
+              raise SystemExit("Expected Localization.swift decompression code was not found")
+          PY
+
       - name: Build unsigned iPhone app
         shell: bash
         run: |
